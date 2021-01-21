@@ -1,4 +1,4 @@
-package Util;
+package canal;
 
 import org.apache.log4j.Logger;
 
@@ -6,7 +6,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JdbcUtil {
+public class JdbcCanalCheck {
 
 
 
@@ -16,17 +16,17 @@ public class JdbcUtil {
      * 主库配置，有账号查询权限即可
      */
     private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-    private static final String DB_URL = "jdbc:mysql://192.168.173.67:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
-    private static final String USER = "root";
-    private static final String PSWD = "123456";
+    private static final String DB_URL = "jdbc:mysql://192.168.13.131:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
+    private static final String USER = "canal";
+    private static final String PSWD = "Canal_1234";
 
 
     /**
      * 从库
      */
-    private static final String SLAVE_DB_URL = "jdbc:mysql://192.168.173.71:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
-    private static final String SLAVE_USER = "root";
-    private static final String SLAVE_PSWD = "123456";
+    private static final String SLAVE_DB_URL = "jdbc:mysql://192.168.13.135:3306/seagull?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
+    private static final String SLAVE_USER = "hsmro";
+    private static final String SLAVE_PSWD = "hsMro135@#";
 
     /**
      * 配完以后可以先测试时 设为true，只检测一张表即结束
@@ -35,17 +35,17 @@ public class JdbcUtil {
 
 
 
-    private static Logger log = Logger.getLogger(JdbcUtil.class);
+    private static Logger log = Logger.getLogger(JdbcCanalCheck.class);
 
 
     public static void main(String[] args) {
-        JdbcUtil jdbcUtil = new JdbcUtil();
-        jdbcUtil.getConnection();
+        JdbcCanalCheck jdbcUtil = new JdbcCanalCheck();
+        jdbcUtil.checkError();
     }
 
-    public void getConnection() {
-        JdbcSlaveUtil jdbcSlaveUtil = new JdbcSlaveUtil();
-        jdbcSlaveUtil.setConnection(SLAVE_DB_URL,SLAVE_USER,SLAVE_PSWD);
+    public void checkError() {
+        JdbcCanalSlaveUtil jdbcSlaveUtil = new JdbcCanalSlaveUtil();
+        jdbcSlaveUtil.getConnection(SLAVE_DB_URL,SLAVE_USER,SLAVE_PSWD);
 
 
         Connection conn = null;
@@ -57,36 +57,34 @@ public class JdbcUtil {
             conn = DriverManager.getConnection(DB_URL, USER, PSWD);
 
             stmt = conn.createStatement();
-            String sql = "select TABLE_SCHEMA  schemaName,table_name tableName from information_schema.tables";
-            ResultSet rs = stmt.executeQuery(sql);
 
             int index = 0;
             List<String> allNameList = new ArrayList<String>();
-            while (rs.next()) {
-                index++;
-
-                String schemaName = rs.getString("schemaName");
-                String tableName = rs.getString("tableName");
-
-                boolean noNeed = schemaName.startsWith("information_schema")
-                        || schemaName.startsWith("performance_schema")
-                        || schemaName.startsWith("mysql")
-                        || schemaName.startsWith("xxl")
-                        || schemaName.startsWith("sys");
-                if (!noNeed) {
-                    String allName = schemaName + "." + tableName;
-                    allNameList.add(allName);
-                }
-            }
+            allNameList.add("oms.running_param");
+            allNameList.add("wms.outbound_info");
+            allNameList.add("wms.outbound_detail_info");
+            allNameList.add("wms.wh_inbound");
+            allNameList.add("wms.wh_inbound_detail");
+            allNameList.add("finance.sale_account_detail");
+            allNameList.add("finance.sale_account");
+            allNameList.add("finance.supply_account");
+            allNameList.add("finance.supply_account_detail");
+            allNameList.add("report.sales_send_receive_summary");
+            allNameList.add("report.outbound_reconciliation_detail");
+            allNameList.add("report.customer_sales_profit_breakdown_info");
+            allNameList.add("report.sales_profit_breakdown_info");
+            allNameList.add("sku.sku");
+            allNameList.add("bdm.customer");
             for (String allName : allNameList) {
                 preparedStatement = conn.prepareStatement(
                         "checksum table " + allName);
                 ResultSet resultSet = preparedStatement.executeQuery();
 
                 while (resultSet.next()) {
-                    String resultSlave = resultSet.getString(1) + " " + resultSet.getString(2);
+                    String substring = allName.replaceFirst("\\.","_");
+                    String resultSlave = substring + " " + resultSet.getString(2);
 
-                    String ck = jdbcSlaveUtil.getRresultStr(allName);
+                    String ck = jdbcSlaveUtil.getRresultStr(substring);
                     if (!resultSlave.equals(ck)) {
                         errorCount++;
                         log.error(" ERROR:" + resultSlave + ",从库：" + ck);

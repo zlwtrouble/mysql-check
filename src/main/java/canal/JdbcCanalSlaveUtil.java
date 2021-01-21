@@ -1,13 +1,13 @@
-package Util;
+package canal;
 
 import org.apache.log4j.Logger;
 
 import java.sql.*;
 
-public class JdbcSlaveUtil {
+public class JdbcCanalSlaveUtil {
 
 
-    private static Logger log = Logger.getLogger(JdbcSlaveUtil.class);
+    private static Logger log = Logger.getLogger(JdbcCanalSlaveUtil.class);
 
 
     //从库配置，有账号查询权限即可
@@ -22,18 +22,8 @@ public class JdbcSlaveUtil {
 
     PreparedStatement preparedStatement = null;
 
-  private static   String url="";
-    private static   String user="";
-    private static  String pswd="";
 
-
-    public void setConnection(String url1,String user1,String pswd1) {
-        url=url1;
-        user=user1;
-        pswd=pswd1;;
-    }
-
-    public void getConnection() {
+    public void getConnection(String url,String user,String pswd) {
         try {
             Class.forName(JDBC_DRIVER).newInstance();
             conn = DriverManager.getConnection(url, user, pswd);
@@ -44,27 +34,14 @@ public class JdbcSlaveUtil {
     }
 
     public String getRresultStr(String allName) throws SQLException {
-        try {
-            this.getConnection();
-            preparedStatement = conn.prepareStatement("checksum table " + allName);
-            preparedStatement.setQueryTimeout(3600);
-            ResultSet resultSet = preparedStatement.executeQuery();
+        preparedStatement = conn.prepareStatement("checksum table " + allName);
+        ResultSet resultSet = preparedStatement.executeQuery();
 
-
-            while (resultSet.next()) {
-                String resultStr = resultSet.getString(1) + " " + resultSet.getString(2);
-                return resultStr;
-            }
-            return null;
-        } finally {
-            if(preparedStatement!=null){
-                preparedStatement.close();
-            }
-            if(conn!=null){
-                conn.close();
-            }
-
+        while (resultSet.next()) {
+            String resultStr = allName + " " + resultSet.getString(2);
+            return resultStr;
         }
+        return null;
     }
 
 

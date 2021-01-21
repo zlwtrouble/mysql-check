@@ -4,54 +4,51 @@ import org.apache.log4j.Logger;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
-public class JdbcUtil {
-
-
-
+public class JdbcProdUtil {
 
 
     /**
      * 主库配置，有账号查询权限即可
      */
     private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-    private static final String DB_URL = "jdbc:mysql://192.168.173.67:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
-    private static final String USER = "root";
-    private static final String PSWD = "123456";
+    private static final String DB_URL = "jdbc:mysql://192.168.13.129:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false";
+    private static final String USER = "selectUser";
+    private static final String PSWD = "selectMro#";
 
 
     /**
      * 从库
      */
-    private static final String SLAVE_DB_URL = "jdbc:mysql://192.168.173.71:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
-    private static final String SLAVE_USER = "root";
-    private static final String SLAVE_PSWD = "123456";
+    private static final String SLAVE_DB_URL = "jdbc:mysql://192.168.13.131:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false";
+    private static final String SLAVE_USER = "selectUser";
+    private static final String SLAVE_PSWD = "selectMro#";
 
     /**
      * 配完以后可以先测试时 设为true，只检测一张表即结束
      */
-    private static  boolean hasTest = false;
+    private static boolean hasTest = false;
 
 
-
-    private static Logger log = Logger.getLogger(JdbcUtil.class);
+    private static Logger log = Logger.getLogger(JdbcProdUtil.class);
 
 
     public static void main(String[] args) {
-        JdbcUtil jdbcUtil = new JdbcUtil();
+        JdbcProdUtil jdbcUtil = new JdbcProdUtil();
         jdbcUtil.getConnection();
     }
 
     public void getConnection() {
         JdbcSlaveUtil jdbcSlaveUtil = new JdbcSlaveUtil();
-        jdbcSlaveUtil.setConnection(SLAVE_DB_URL,SLAVE_USER,SLAVE_PSWD);
+        jdbcSlaveUtil.setConnection(SLAVE_DB_URL, SLAVE_USER, SLAVE_PSWD);
 
 
         Connection conn = null;
         Statement stmt = null;
         PreparedStatement preparedStatement = null;
-        int errorCount=0;
+        int errorCount = 0;
         try {
             Class.forName(JDBC_DRIVER).newInstance();
             conn = DriverManager.getConnection(DB_URL, USER, PSWD);
@@ -72,16 +69,21 @@ public class JdbcUtil {
                         || schemaName.startsWith("performance_schema")
                         || schemaName.startsWith("mysql")
                         || schemaName.startsWith("xxl")
-                        || schemaName.startsWith("sys");
+                        || schemaName.startsWith("sys")
+                        || tableName.startsWith("distance");
                 if (!noNeed) {
                     String allName = schemaName + "." + tableName;
                     allNameList.add(allName);
                 }
             }
+            conn.close();
             for (String allName : allNameList) {
+                conn = DriverManager.getConnection(DB_URL, USER, PSWD);
                 preparedStatement = conn.prepareStatement(
                         "checksum table " + allName);
+                preparedStatement.setQueryTimeout(3600);
                 ResultSet resultSet = preparedStatement.executeQuery();
+
 
                 while (resultSet.next()) {
                     String resultSlave = resultSet.getString(1) + " " + resultSet.getString(2);
@@ -89,22 +91,26 @@ public class JdbcUtil {
                     String ck = jdbcSlaveUtil.getRresultStr(allName);
                     if (!resultSlave.equals(ck)) {
                         errorCount++;
-                        log.error(" ERROR:" + resultSlave + ",从库：" + ck);
-                    }else{
+                        String s = "ERROR:" + resultSlave + ",从库：" + ck;
+                        log.error(s);
+                        FileUtil.writer(new Date().toString()+s);
+                    } else {
                         log.info(" pass table name:" + allName);
                     }
                 }
+                preparedStatement.close();
+                conn.close();
                 //
-                if(hasTest){
+                if (hasTest) {
                     break;
                 }
 
 
             }
 
-            log.info("错误的表数量"+errorCount);
-        } catch ( Exception e) {
-            log.error("DB/SQL ERROR:" , e);
+            log.info("错误的表数量" + errorCount);
+        } catch (Exception e) {
+            log.error("DB/SQL ERROR:", e);
         } finally {
             try {
                 if (stmt != null) {
@@ -119,7 +125,7 @@ public class JdbcUtil {
 
                 log.info("主库 conn close");
             } catch (SQLException e) {
-                log.info("Can't close stmt/conn because of " ,e);
+                log.info("Can't close stmt/conn because of ", e);
             }
             jdbcSlaveUtil.closeConn();
         }
