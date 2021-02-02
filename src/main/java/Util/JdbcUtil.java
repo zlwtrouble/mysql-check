@@ -16,17 +16,17 @@ public class JdbcUtil {
      * 主库配置，有账号查询权限即可
      */
     private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-    private static final String DB_URL = "jdbc:mysql://192.168.173.67:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
-    private static final String USER = "root";
-    private static final String PSWD = "123456";
+    private static final String DB_URL = "jdbc:mysql://192.168.13.129:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false";
+    private static final String USER = "selectUser";
+    private static final String PSWD = "selectMro#";
 
 
     /**
      * 从库
      */
-    private static final String SLAVE_DB_URL = "jdbc:mysql://192.168.173.71:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
-    private static final String SLAVE_USER = "root";
-    private static final String SLAVE_PSWD = "123456";
+    private static final String SLAVE_DB_URL = "jdbc:mysql://192.168.13.131:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false";
+    private static final String SLAVE_USER = "selectUser";
+    private static final String SLAVE_PSWD = "selectMro#";
 
     /**
      * 配完以后可以先测试时 设为true，只检测一张表即结束

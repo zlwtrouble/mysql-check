@@ -202,21 +202,21 @@ public class SyncData {
 
 
         SyncData syncData = new SyncData();
-   //     pool.execute(() -> syncData.synch("wms", "wh_inbound", null));
-//        pool.execute(() -> syncData.synch("wms", "wh_inbound_detail", null));
-    //    pool.execute(() -> syncData.synch("wms", "outbound_detail_info", null));
-    //    pool.execute(() -> syncData.synch("wms", "outbound_info", null));
-    //    pool.execute(() -> syncData.synch("report", "sales_send_receive_summary", null));
-//        pool.execute(() -> syncData.synch("report", "sales_profit_breakdown_info", null));
-     //   pool.execute(() -> syncData.synch("report", "outbound_reconciliation_detail", null));
-//        pool.execute(() -> syncData.synch("report", "customer_sales_profit_breakdown_info", null));
-//        pool.execute(() -> syncData.synch("finance", "sale_account", null));
-//        pool.execute(() -> syncData.synch("finance", "sale_account_detail", null));
-//        pool.execute(() -> syncData.synch("finance", "supply_account", null));
-//        pool.execute(() -> syncData.synch("finance", "supply_account_detail", null));
-//        pool.execute(() -> syncData.synch("sku", "sku", null));
+        pool.execute(() -> syncData.synch("wms", "wh_inbound", null));
+        pool.execute(() -> syncData.synch("wms", "wh_inbound_detail", null));
+        pool.execute(() -> syncData.synch("wms", "outbound_detail_info", null));
+        pool.execute(() -> syncData.synch("wms", "outbound_info", null));
+        pool.execute(() -> syncData.synch("report", "sales_send_receive_summary", null));
+        pool.execute(() -> syncData.synch("report", "sales_profit_breakdown_info", null));
+        pool.execute(() -> syncData.synch("report", "outbound_reconciliation_detail", null));
+        pool.execute(() -> syncData.synch("report", "customer_sales_profit_breakdown_info", null));
+        pool.execute(() -> syncData.synch("finance", "sale_account", null));
+        pool.execute(() -> syncData.synch("finance", "sale_account_detail", null));
+        pool.execute(() -> syncData.synch("finance", "supply_account", null));
+        pool.execute(() -> syncData.synch("finance", "supply_account_detail", null));
+        pool.execute(() -> syncData.synch("sku", "sku", null));
         pool.execute(() -> syncData.synch("oms", "running_param", null));
-    //    pool.execute(() -> syncData.synch("bdm", "customer", null));
+        pool.execute(() -> syncData.synch("bdm", "customer", null));
 
         pool.shutdown();
         for (; ; ) {
