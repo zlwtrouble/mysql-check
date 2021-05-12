@@ -6,20 +6,20 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JdbcUtil {
+public class JdbcScsCheckUtil {
 
 
-
-
+    /**
+     * jdbc类型
+     */
+    private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
 
     /**
      * 主库配置，有账号查询权限即可
      */
-    private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
     private static final String DB_URL = "jdbc:mysql://192.168.13.129:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false";
     private static final String USER = "selectUser";
     private static final String PSWD = "selectMro#";
-
 
     /**
      * 从库
@@ -34,19 +34,16 @@ public class JdbcUtil {
     private static  boolean hasTest = false;
 
 
-
-    private static Logger log = Logger.getLogger(JdbcUtil.class);
+    private static Logger log = Logger.getLogger(JdbcScsCheckUtil.class);
 
 
     public static void main(String[] args) {
-        JdbcUtil jdbcUtil = new JdbcUtil();
+        JdbcScsCheckUtil jdbcUtil = new JdbcScsCheckUtil();
         jdbcUtil.getConnection();
     }
 
     public void getConnection() {
-        JdbcSlaveUtil jdbcSlaveUtil = new JdbcSlaveUtil();
-        jdbcSlaveUtil.setConnection(SLAVE_DB_URL,SLAVE_USER,SLAVE_PSWD);
-
+        JdbcConnect jdbcSlaveUtil = new JdbcConnect(SLAVE_DB_URL, SLAVE_USER, SLAVE_PSWD, null);
 
         Connection conn = null;
         Statement stmt = null;
