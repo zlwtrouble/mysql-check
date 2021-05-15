@@ -4,34 +4,29 @@ import org.apache.log4j.Logger;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.*;
 
 public class JdbcScsCheckUtil {
 
+    static JdbcConnUtil.DataSourceConfig dataSourceConfigMaster = new JdbcConnUtil.DataSourceConfig("jdbc:mysql://192.168.13.129:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false",
+            "selectUser",
+            "selectMro#",
+            "com.mysql.jdbc.Driver");
 
-    /**
-     * jdbc类型
-     */
-    private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
 
-    /**
-     * 主库配置，有账号查询权限即可
-     */
-    private static final String DB_URL = "jdbc:mysql://192.168.13.129:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false";
-    private static final String USER = "selectUser";
-    private static final String PSWD = "selectMro#";
+    static JdbcConnUtil.DataSourceConfig dataSourceConfigSlave = new JdbcConnUtil.DataSourceConfig("jdbc:mysql://192.168.13.76:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false",
+            "selectUser",
+            "selectMro#",
+            "com.mysql.jdbc.Driver");
 
-    /**
-     * 从库
-     */
-    private static final String SLAVE_DB_URL = "jdbc:mysql://192.168.13.131:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false";
-    private static final String SLAVE_USER = "selectUser";
-    private static final String SLAVE_PSWD = "selectMro#";
 
     /**
      * 配完以后可以先测试时 设为true，只检测一张表即结束
      */
-    private static  boolean hasTest = false;
+    private static boolean hasTest = false;
 
 
     private static Logger log = Logger.getLogger(JdbcScsCheckUtil.class);
@@ -43,82 +38,80 @@ public class JdbcScsCheckUtil {
     }
 
     public void getConnection() {
-        JdbcConnect jdbcSlaveUtil = new JdbcConnect(SLAVE_DB_URL, SLAVE_USER, SLAVE_PSWD, null);
+        ExecutorService threadPool = Executors.newFixedThreadPool(8);
+        List<String> errorList = Collections.synchronizedList(new ArrayList<>());
+        String sql = "select TABLE_SCHEMA  schemaName,table_name tableName from information_schema.tables";
+        List<LinkedHashMap<String, String>> linkedHashMaps = JdbcConnUtil.executeSql(dataSourceConfigMaster, sql);
 
-        Connection conn = null;
-        Statement stmt = null;
-        PreparedStatement preparedStatement = null;
-        int errorCount=0;
-        try {
-            Class.forName(JDBC_DRIVER).newInstance();
-            conn = DriverManager.getConnection(DB_URL, USER, PSWD);
+        int index = 0;
+        List<String> allNameList = new ArrayList<String>();
+        for (LinkedHashMap<String, String> row : linkedHashMaps) {
+            index++;
 
-            stmt = conn.createStatement();
-            String sql = "select TABLE_SCHEMA  schemaName,table_name tableName from information_schema.tables";
-            ResultSet rs = stmt.executeQuery(sql);
+            String schemaName = row.get("schemaName");
+            String tableName = row.get("tableName");
 
-            int index = 0;
-            List<String> allNameList = new ArrayList<String>();
-            while (rs.next()) {
-                index++;
-
-                String schemaName = rs.getString("schemaName");
-                String tableName = rs.getString("tableName");
-
-                boolean noNeed = schemaName.startsWith("information_schema")
-                        || schemaName.startsWith("performance_schema")
-                        || schemaName.startsWith("mysql")
-                        || schemaName.startsWith("xxl")
-                        || schemaName.startsWith("sys");
-                if (!noNeed) {
-                    String allName = schemaName + "." + tableName;
-                    allNameList.add(allName);
-                }
+            boolean noNeed = schemaName.startsWith("information_schema")
+                    || schemaName.startsWith("performance_schema")
+                    || schemaName.startsWith("mysql")
+                    || schemaName.startsWith("xxl1")
+                    || schemaName.startsWith("sys1");
+            if (!noNeed) {
+                String allName = "`" + schemaName + "`.`" + tableName + "`";
+                allNameList.add(allName);
             }
-            for (String allName : allNameList) {
-                preparedStatement = conn.prepareStatement(
-                        "checksum table " + allName);
-                ResultSet resultSet = preparedStatement.executeQuery();
+        }
+        for (String allName : allNameList) {
+            threadPool.execute(() -> {
+                checkTable(errorList, allName);
+            });
 
-                while (resultSet.next()) {
-                    String resultSlave = resultSet.getString(1) + " " + resultSet.getString(2);
-
-                    String ck = jdbcSlaveUtil.getRresultStr(allName);
-                    if (!resultSlave.equals(ck)) {
-                        errorCount++;
-                        log.error(" ERROR:" + resultSlave + ",从库：" + ck);
-                    }else{
-                        log.info(" pass table name:" + allName);
-                    }
-                }
-                //
-                if(hasTest){
-                    break;
-                }
-
-
+            if (hasTest) {
+                break;
             }
 
-            log.info("错误的表数量"+errorCount);
-        } catch ( Exception e) {
-            log.error("DB/SQL ERROR:" , e);
-        } finally {
+
+        }
+
+
+        threadPool.shutdown();
+        while (true) {
+            if (threadPool.isTerminated()) {
+                System.out.println("结束了！");
+                break;
+            }
             try {
-                if (stmt != null) {
-                    stmt.close();
-                }
-                if (preparedStatement != null) {
-                    preparedStatement.close();
-                }
-                if (conn != null) {
-                    conn.close();
-                }
-
-                log.info("主库 conn close");
-            } catch (SQLException e) {
-                log.info("Can't close stmt/conn because of " ,e);
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-            jdbcSlaveUtil.closeConn();
+        }
+
+        log.info("错误的表数量" + errorList.size());
+        errorList.forEach(o -> {
+            log.info(o);
+        });
+    }
+
+    private void checkTable(List<String> errorList, String allName) {
+        List<LinkedHashMap<String, String>> resultSet = JdbcConnUtil.executeSql(dataSourceConfigMaster, "checksum table " + allName);
+        String m = "";
+        String s = "";
+        for (LinkedHashMap<String, String> row : resultSet) {
+            m = row.get("Table") + " " + row.get("Checksum");
+        }
+
+        List<LinkedHashMap<String, String>> jdbcSlave = JdbcConnUtil.executeSql(dataSourceConfigSlave, "checksum table " + allName);
+        for (LinkedHashMap<String, String> row : jdbcSlave) {
+            s = row.get("Table") + " " + row.get("Checksum");
+        }
+        if (!m.equals(s)) {
+            String errorMsg = " ERROR:" + m + ",从库：" + s;
+            errorList.add(errorMsg);
+            log.error(errorMsg);
+        } else {
+            log.info(" pass table name:" + allName);
         }
     }
+
 }

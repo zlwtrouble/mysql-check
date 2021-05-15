@@ -1,7 +1,7 @@
 package Util;
 
 import com.alibaba.fastjson.JSON;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.log4j.Logger;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,8 +12,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-@Slf4j
 public class SyncData {
+
+    private static Logger log = Logger.getLogger(JdbcScsCheckUtil.class);
 
     private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
     private static final String DB_URL = "jdbc:mysql://192.168.13.131:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true";
