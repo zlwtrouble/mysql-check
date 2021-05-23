@@ -17,7 +17,7 @@ public class JdbcScsCheckUtil {
             "com.mysql.jdbc.Driver");
 
 
-    static JdbcConnUtil.DataSourceConfig dataSourceConfigSlave = new JdbcConnUtil.DataSourceConfig("jdbc:mysql://192.168.13.76:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false",
+    static JdbcConnUtil.DataSourceConfig dataSourceConfigSlave = new JdbcConnUtil.DataSourceConfig("jdbc:mysql://192.168.13.131:3306/oms?useUnicode=true&characterEncoding=UTF8&allowMultiQueries=true&useSSL=false",
             "selectUser",
             "selectMro#",
             "com.mysql.jdbc.Driver");
@@ -38,7 +38,8 @@ public class JdbcScsCheckUtil {
     }
 
     public void getConnection() {
-        ExecutorService threadPool = Executors.newFixedThreadPool(8);
+        long start = System.currentTimeMillis();
+        ExecutorService threadPool = Executors.newFixedThreadPool(16);
         List<String> errorList = Collections.synchronizedList(new ArrayList<>());
         String sql = "select TABLE_SCHEMA  schemaName,table_name tableName from information_schema.tables";
         List<LinkedHashMap<String, String>> linkedHashMaps = JdbcConnUtil.executeSql(dataSourceConfigMaster, sql);
@@ -54,14 +55,14 @@ public class JdbcScsCheckUtil {
             boolean noNeed = schemaName.startsWith("information_schema")
                     || schemaName.startsWith("performance_schema")
                     || schemaName.startsWith("mysql")
-                    || schemaName.startsWith("xxl1")
-                    || schemaName.startsWith("sys1");
+                    || schemaName.startsWith("sys");
             if (!noNeed) {
                 String allName = "`" + schemaName + "`.`" + tableName + "`";
                 allNameList.add(allName);
             }
         }
         for (String allName : allNameList) {
+            index++;
             threadPool.execute(() -> {
                 checkTable(errorList, allName);
             });
@@ -77,7 +78,7 @@ public class JdbcScsCheckUtil {
         threadPool.shutdown();
         while (true) {
             if (threadPool.isTerminated()) {
-                System.out.println("结束了！");
+                log.info("结束了！共计：" + index);
                 break;
             }
             try {
